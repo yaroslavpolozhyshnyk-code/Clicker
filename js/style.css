@@ -1,0 +1,104 @@
+body {
+    margin: 0;
+    background: radial-gradient(circle at top, #222, #000);
+    font-family: Arial, sans-serif;
+    color: white;
+    text-align: center;
+}
+
+.game {
+    margin-top: 40px;
+}
+
+#score {
+    font-size: 50px;
+    font-weight: bold;
+    margin: 10px;
+    transition: 0.2s;
+}
+
+#clickBtn {
+    padding: 25px 60px;
+    font-size: 30px;
+    background: linear-gradient(45deg, orange, red);
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: 0.15s;
+}
+
+#clickBtn:hover {
+    transform: scale(1.1);
+}
+
+#clickBtn:active {
+    transform: scale(0.9);
+}
+
+.shop {
+    margin-top: 30px;
+}
+
+.shop button {
+    display: block;
+    margin: 10px auto;
+    padding: 10px 25px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    background: #333;
+    color: white;
+    transition: 0.2s;
+}
+
+.shop button:hover {
+    background: #555;
+}
+
+.golden {
+    box-shadow: 0 0 25px gold;
+    background: gold !important;
+    color: black;
+}
+
+@keyframes floatUp {
+    from { transform: translateY(0); opacity: 1; }
+    to { transform: translateY(-60px); opacity: 0; }
+}
+
+.light {
+    background: white;
+    color: black;
+}
+
+#menuBtn {
+    margin-top: 20px;
+    padding: 10px 20px;
+    cursor: pointer;
+}
+
+#menuPanel {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.menuContent {
+    background: #222;
+    padding: 30px;
+    border-radius: 15px;
+    width: 300px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.menuContent button {
+    display: block;
+    margin: 8px auto;
+    width: 100%;
+}
