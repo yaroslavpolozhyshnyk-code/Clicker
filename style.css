@@ -1,0 +1,65 @@
+body{
+    font-family: Arial;
+    background: #111;
+    color: white;
+    text-align: center;
+    padding: 30px;
+}
+
+button{
+    padding: 10px 20px;
+    margin: 5px;
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+}
+
+#clickBtn{
+    font-size: 22px;
+    background: orange;
+    transition: 0.2s;
+}
+
+#clickBtn:active{
+    transform: scale(0.9);
+}
+
+.profile input{
+    padding: 8px;
+}
+
+.xpBar{
+    width: 300px;
+    height: 20px;
+    background: #333;
+    margin: 10px auto;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+#xpFill{
+    height: 100%;
+    width: 0%;
+    background: lime;
+    transition: 0.3s;
+}
+
+#menu{
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.menuContent{
+    background: #222;
+    padding: 30px;
+    border-radius: 15px;
+    width: 300px;
+}
+
+.hidden{
+    display: none;
+}
