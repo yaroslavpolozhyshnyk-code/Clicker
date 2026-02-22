@@ -1,156 +1,255 @@
-let game = {
-    nickname: "",
-    score: 0,
-    highScore: 0,
-    clickPower: 1,
-    autoPower: 0,
-    level: 1,
-    xp: 0,
-    xpNeeded: 200,
-    multiplier: 1,
-    rebirths: 0
-};
+/* =========================
+   ⚙️ KONFIG
+========================= */
 
-// ELEMENTY
-const scoreEl = document.getElementById("score");
-const clickBtn = document.getElementById("clickBtn");
-const upgradeClick = document.getElementById("upgradeClick");
-const upgradeAuto = document.getElementById("upgradeAuto");
-const boostBtn = document.getElementById("boostBtn");
-const rebirthBtn = document.getElementById("rebirthBtn");
-const xpFill = document.getElementById("xpFill");
+const API_KEY = "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";
+const MODEL = "llama-3.1-8b-instant";
 
-const nicknameInput = document.getElementById("nicknameInput");
-const saveNickBtn = document.getElementById("saveNickBtn");
-const currentNick = document.getElementById("currentNick");
-const leaderboardEl = document.getElementById("leaderboard");
+const AI_NAME = "Mope";
 
-const menuBtn = document.getElementById("menuBtn");
-const menu = document.getElementById("menu");
+let aiMood = "neutralny"; // zmienia się dynamicznie
 
-// LOAD
-function load(){
-    const save = JSON.parse(localStorage.getItem("ultraClicker"));
-    if(save) game = {...game, ...save};
-}
-function save(){
-    localStorage.setItem("ultraClicker", JSON.stringify(game));
-}
-load();
+/* =========================
+   💾 DANE
+========================= */
 
-// MENU
-menuBtn.onclick = () => menu.classList.toggle("hidden");
-menu.onclick = e => { if(e.target === menu) menu.classList.add("hidden"); };
+let chats = JSON.parse(localStorage.getItem("mopeChats")) || {};
+let memories = JSON.parse(localStorage.getItem("mopeMemory")) || {};
+let currentChatId = localStorage.getItem("mopeCurrentChat");
 
-// KLIK
-clickBtn.onclick = () => {
-
-    let gained = game.clickPower * game.multiplier;
-
-    // CRIT 10%
-    if(Math.random() < 0.1){
-        gained *= 3;
-    }
-
-    game.score += gained;
-    game.xp += gained;
-
-    levelCheck();
-    updateUI();
-};
-
-// AUTO
-setInterval(()=>{
-    game.score += game.autoPower * game.multiplier;
-    updateUI();
-},1000);
-
-// LEVEL
-function levelCheck(){
-    if(game.xp >= game.xpNeeded){
-        game.xp = 0;
-        game.level++;
-        game.multiplier += 0.2;
-        game.xpNeeded *= 1.3;
-        alert("LEVEL UP! 🔥");
-    }
+if (!currentChatId || !chats[currentChatId]) {
+  createNewChat();
 }
 
-// SKLEP
-upgradeClick.onclick = () => buy(()=>game.clickPower++, game.clickPower*50);
-upgradeAuto.onclick = () => buy(()=>game.autoPower++, game.autoPower*100+100);
-
-boostBtn.onclick = () => {
-    if(game.score >= 2000){
-        game.score -= 2000;
-        game.multiplier *= 2;
-        setTimeout(()=> game.multiplier /=2, 15000);
-    }
-};
-
-rebirthBtn.onclick = () => {
-    if(game.score >= 100000){
-        game.rebirths++;
-        game.multiplier += 0.5;
-        game.score = 0;
-        game.clickPower = 1;
-        game.autoPower = 0;
-    }
-};
-
-function buy(action, cost){
-    if(game.score >= cost){
-        game.score -= cost;
-        action();
-    }
+function saveAll() {
+  localStorage.setItem("mopeChats", JSON.stringify(chats));
+  localStorage.setItem("mopeCurrentChat", currentChatId);
+  localStorage.setItem("mopeMemory", JSON.stringify(memories));
 }
 
-// NICK
-saveNickBtn.onclick = ()=>{
-    game.nickname = nicknameInput.value;
-    updateUI();
-};
+/* =========================
+   📚 WIKIPEDIA ENGINE
+========================= */
 
-// RANKING
-function updateLeaderboard(){
+async function searchWikipedia(query) {
+  try {
+    const res = await fetch(
+      `https://pl.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`
+    );
 
-    let board = JSON.parse(localStorage.getItem("leaderboard")) || [];
+    if (!res.ok) return null;
 
-    if(game.score > game.highScore){
-        game.highScore = Math.floor(game.score);
+    const data = await res.json();
+    if (!data.extract) return null;
 
-        if(game.nickname){
-            board = board.filter(p=>p.nick!==game.nickname);
-            board.push({nick:game.nickname, score:game.highScore});
-            board.sort((a,b)=>b.score-a.score);
-            board = board.slice(0,5);
-            localStorage.setItem("leaderboard", JSON.stringify(board));
-        }
-    }
+    return data.extract.slice(0, 1000);
 
-    leaderboardEl.innerHTML="";
-    board.forEach((p,i)=>{
-        const li=document.createElement("li");
-        li.innerText=p.nick+" - "+p.score;
-        if(i===0) li.style.color="gold";
-        leaderboardEl.appendChild(li);
+  } catch {
+    return null;
+  }
+}
+
+function shouldUseWiki(text) {
+  const keywords = ["co to", "kim jest", "kto to", "definicja", "wyjaśnij"];
+  return keywords.some(k => text.toLowerCase().includes(k));
+}
+
+/* =========================
+   🧠 MEMORY
+========================= */
+
+function updateMemory(text) {
+  if (!memories.longTerm) memories.longTerm = [];
+
+  if (text.length < 120) {
+    memories.longTerm.push(text);
+    memories.longTerm = memories.longTerm.slice(-25);
+  }
+
+  saveAll();
+}
+
+function getMemoryContext() {
+  if (!memories.longTerm) return "";
+  return "Ważne informacje o użytkowniku: " + memories.longTerm.join(" | ");
+}
+
+/* =========================
+   ❤️ EMOTION + MOOD
+========================= */
+
+async function detectEmotion(message) {
+  try {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + API_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [
+          { role: "system", content: "Podaj emocję użytkownika w 1 słowie." },
+          { role: "user", content: message }
+        ],
+        max_tokens: 10
+      })
     });
+
+    const data = await response.json();
+    const emotion = data.choices[0].message.content.trim();
+
+    // AI mood adaptation
+    if (emotion.includes("smutek")) aiMood = "wspierający";
+    else if (emotion.includes("złość")) aiMood = "spokojny";
+    else if (emotion.includes("radość")) aiMood = "entuzjastyczny";
+    else aiMood = "neutralny";
+
+    return emotion;
+
+  } catch {
+    return "neutralna";
+  }
 }
 
-// UI
-function updateUI(){
-    scoreEl.innerText = Math.floor(game.score);
-    currentNick.innerText = "Nick: "+(game.nickname||"Brak");
+/* =========================
+   💬 CHAT
+========================= */
 
-    upgradeClick.innerText = "+1 Click ("+Math.floor(game.clickPower*50)+")";
-    upgradeAuto.innerText = "+1 Auto ("+Math.floor(game.autoPower*100+100)+")";
-    boostBtn.innerText = "Boost x2 (2000)";
-    rebirthBtn.innerText = "Rebirth (100k)";
-
-    xpFill.style.width = (game.xp/game.xpNeeded*100)+"%";
-
-    updateLeaderboard();
-    save();
+function createNewChat() {
+  const id = "chat_" + Date.now();
+  chats[id] = { name: "Nowy czat", messages: [] };
+  currentChatId = id;
+  saveAll();
+  renderChatList();
+  renderMessages();
 }
 
-updateUI();
+function renameChat(id) {
+  const newName = prompt("Nowa nazwa:", chats[id].name);
+  if (newName) {
+    chats[id].name = newName;
+    saveAll();
+    renderChatList();
+  }
+}
+
+function switchChat(id) {
+  currentChatId = id;
+  saveAll();
+  renderMessages();
+}
+
+function renderChatList() {
+  const list = document.getElementById("chatList");
+  list.innerHTML = "";
+
+  Object.keys(chats).forEach(id => {
+    const item = document.createElement("div");
+    item.className = "chat-item";
+    item.onclick = () => switchChat(id);
+
+    item.innerHTML = `
+      <span>${chats[id].name}</span>
+      <button onclick="event.stopPropagation(); renameChat('${id}')">✏</button>
+    `;
+
+    list.appendChild(item);
+  });
+}
+
+function renderMessages() {
+  const chatDiv = document.getElementById("chat");
+  chatDiv.innerHTML = "";
+
+  chats[currentChatId].messages.forEach(msg => {
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "message " + msg.role;
+
+    wrapper.innerHTML = `
+      <div class="avatar">${msg.role === "assistant" ? "🤖" : "🧑"}</div>
+      <div class="bubble">${msg.content.replace(/\n/g,"<br>")}</div>
+    `;
+
+    chatDiv.appendChild(wrapper);
+  });
+
+  chatDiv.scrollTop = 999999;
+}
+
+/* =========================
+   🚀 SEND
+========================= */
+
+async function send() {
+  const input = document.getElementById("input");
+  const text = input.value.trim();
+  if (!text) return;
+
+  chats[currentChatId].messages.push({ role: "user", content: text });
+  input.value = "";
+  saveAll();
+  renderMessages();
+
+  const emotion = await detectEmotion(text);
+  const memoryContext = getMemoryContext();
+
+  let wikiData = null;
+
+  if (shouldUseWiki(text)) {
+    wikiData = await searchWikipedia(text.replace(/co to|kim jest|kto to/gi,""));
+  }
+
+  const systemPrompt = `
+Jesteś Mope.
+Twój aktualny nastrój: ${aiMood}.
+Emocja użytkownika: ${emotion}.
+${memoryContext}
+${wikiData ? "Dane z Wikipedii: " + wikiData : ""}
+Odpowiadaj inteligentnie i naturalnie.
+`;
+
+  try {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + API_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...chats[currentChatId].messages.slice(-10)
+        ],
+        temperature: 0.7,
+        max_tokens: 700
+      })
+    });
+
+    const data = await response.json();
+    const reply = data.choices[0].message.content;
+
+    chats[currentChatId].messages.push({
+      role: "assistant",
+      content: reply
+    });
+
+    updateMemory(text);
+    saveAll();
+    renderMessages();
+
+  } catch {
+    alert("Błąd API");
+  }
+}
+
+/* ========================= */
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter") send();
+});
+
+renderChatList();
+renderMessages();
