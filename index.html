@@ -2,41 +2,23 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Ultra Clicker</title>
+    <title>Mope AI</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<h1>🔥 Ultra Clicker</h1>
-
-<div class="profile">
-    <input type="text" id="nicknameInput" placeholder="Twój nick">
-    <button id="saveNickBtn">Zapisz</button>
-    <p id="currentNick">Nick: Brak</p>
+<div class="sidebar">
+    <div class="logo">🤖 Mope</div>
+    <button class="new-chat" onclick="createNewChat()">+ Nowy czat</button>
+    <div id="chatList" class="chat-list"></div>
 </div>
 
-<div class="game">
-    <h2 id="score">0</h2>
-    <button id="clickBtn">KLIKNIJ</button>
-    <div class="xpBar">
-        <div id="xpFill"></div>
-    </div>
-</div>
+<div class="main">
+    <div id="chat" class="chat"></div>
 
-<button id="menuBtn">☰ MENU</button>
-
-<div id="menu" class="hidden">
-    <div class="menuContent">
-
-        <h2>🛒 Sklep</h2>
-        <button id="upgradeClick"></button>
-        <button id="upgradeAuto"></button>
-        <button id="boostBtn"></button>
-        <button id="rebirthBtn"></button>
-
-        <h2>🏆 Ranking</h2>
-        <ol id="leaderboard"></ol>
-
+    <div class="input-area">
+        <input type="text" id="input" placeholder="Napisz wiadomość..." autocomplete="off">
+        <button onclick="send()">Wyślij</button>
     </div>
 </div>
 
