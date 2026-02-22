@@ -2,7 +2,7 @@
    ⚙️ KONFIG
 ========================= */
 
-const API_KEY = "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";
+const API_KEY = "";
 const MODEL = "llama-3.1-8b-instant";
 
 const AI_NAME = "Mope";
@@ -253,3 +253,4 @@ document.addEventListener("keydown", e => {
 
 renderChatList();
 renderMessages();
+
