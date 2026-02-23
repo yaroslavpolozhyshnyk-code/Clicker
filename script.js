@@ -1,157 +1,82 @@
-/* =========================
-   ⚙️ KONFIG
-========================= */
+/* ================================
+   MOPE ULTRA
+================================ */
 
-const API_KEY = "";
+const API_KEY = "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";
 const MODEL = "llama-3.1-8b-instant";
+const STORAGE_KEY = "MOPE";
 
-const AI_NAME = "Mope";
+let data = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
+  user: { name: null },
+  chats: {},
+  currentChat: null
+};
 
-let aiMood = "neutralny"; // zmienia się dynamicznie
-
-/* =========================
-   💾 DANE
-========================= */
-
-let chats = JSON.parse(localStorage.getItem("mopeChats")) || {};
-let memories = JSON.parse(localStorage.getItem("mopeMemory")) || {};
-let currentChatId = localStorage.getItem("mopeCurrentChat");
-
-if (!currentChatId || !chats[currentChatId]) {
-  createNewChat();
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
-function saveAll() {
-  localStorage.setItem("mopeChats", JSON.stringify(chats));
-  localStorage.setItem("mopeCurrentChat", currentChatId);
-  localStorage.setItem("mopeMemory", JSON.stringify(memories));
-}
+/* ================================
+   CHAT SYSTEM
+================================ */
 
-/* =========================
-   📚 WIKIPEDIA ENGINE
-========================= */
-
-async function searchWikipedia(query) {
-  try {
-    const res = await fetch(
-      `https://pl.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`
-    );
-
-    if (!res.ok) return null;
-
-    const data = await res.json();
-    if (!data.extract) return null;
-
-    return data.extract.slice(0, 1000);
-
-  } catch {
-    return null;
-  }
-}
-
-function shouldUseWiki(text) {
-  const keywords = ["co to", "kim jest", "kto to", "definicja", "wyjaśnij"];
-  return keywords.some(k => text.toLowerCase().includes(k));
-}
-
-/* =========================
-   🧠 MEMORY
-========================= */
-
-function updateMemory(text) {
-  if (!memories.longTerm) memories.longTerm = [];
-
-  if (text.length < 120) {
-    memories.longTerm.push(text);
-    memories.longTerm = memories.longTerm.slice(-25);
-  }
-
-  saveAll();
-}
-
-function getMemoryContext() {
-  if (!memories.longTerm) return "";
-  return "Ważne informacje o użytkowniku: " + memories.longTerm.join(" | ");
-}
-
-/* =========================
-   ❤️ EMOTION + MOOD
-========================= */
-
-async function detectEmotion(message) {
-  try {
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": "Bearer " + API_KEY,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: "Podaj emocję użytkownika w 1 słowie." },
-          { role: "user", content: message }
-        ],
-        max_tokens: 10
-      })
-    });
-
-    const data = await response.json();
-    const emotion = data.choices[0].message.content.trim();
-
-    // AI mood adaptation
-    if (emotion.includes("smutek")) aiMood = "wspierający";
-    else if (emotion.includes("złość")) aiMood = "spokojny";
-    else if (emotion.includes("radość")) aiMood = "entuzjastyczny";
-    else aiMood = "neutralny";
-
-    return emotion;
-
-  } catch {
-    return "neutralna";
-  }
-}
-
-/* =========================
-   💬 CHAT
-========================= */
-
-function createNewChat() {
+function createChat() {
   const id = "chat_" + Date.now();
-  chats[id] = { name: "Nowy czat", messages: [] };
-  currentChatId = id;
-  saveAll();
+  data.chats[id] = {
+    name: "Nowy czat",
+    messages: [],
+    summary: ""
+  };
+  data.currentChat = id;
+  save();
+  renderChatList();
+  renderMessages();
+}
+
+function switchChat(id) {
+  data.currentChat = id;
+  renderMessages();
+  save();
+}
+
+function deleteChat(id) {
+  if (!confirm("Usunąć czat?")) return;
+  delete data.chats[id];
+  const keys = Object.keys(data.chats);
+  data.currentChat = keys[0] || null;
+  if (!data.currentChat) createChat();
+  save();
   renderChatList();
   renderMessages();
 }
 
 function renameChat(id) {
-  const newName = prompt("Nowa nazwa:", chats[id].name);
-  if (newName) {
-    chats[id].name = newName;
-    saveAll();
-    renderChatList();
-  }
+  const name = prompt("Nowa nazwa:", data.chats[id].name);
+  if (!name) return;
+  data.chats[id].name = name;
+  save();
+  renderChatList();
 }
 
-function switchChat(id) {
-  currentChatId = id;
-  saveAll();
-  renderMessages();
-}
+/* ================================
+   RENDER
+================================ */
 
 function renderChatList() {
   const list = document.getElementById("chatList");
   list.innerHTML = "";
 
-  Object.keys(chats).forEach(id => {
+  Object.keys(data.chats).forEach(id => {
     const item = document.createElement("div");
     item.className = "chat-item";
     item.onclick = () => switchChat(id);
 
     item.innerHTML = `
-      <span>${chats[id].name}</span>
-      <button onclick="event.stopPropagation(); renameChat('${id}')">✏</button>
+      <span>${data.chats[id].name}</span>
+      <div>
+        <button onclick="event.stopPropagation(); renameChat('${id}')">✏</button>
+        <button onclick="event.stopPropagation(); deleteChat('${id}')">🗑</button>
+      </div>
     `;
 
     list.appendChild(item);
@@ -159,98 +84,207 @@ function renderChatList() {
 }
 
 function renderMessages() {
-  const chatDiv = document.getElementById("chat");
-  chatDiv.innerHTML = "";
+  const chat = document.getElementById("chat");
+  chat.innerHTML = "";
 
-  chats[currentChatId].messages.forEach(msg => {
+  const messages = data.chats[data.currentChat]?.messages || [];
 
-    const wrapper = document.createElement("div");
-    wrapper.className = "message " + msg.role;
+  messages.forEach(msg => {
+    const div = document.createElement("div");
+    div.className = "message " + msg.role;
 
-    wrapper.innerHTML = `
-      <div class="avatar">${msg.role === "assistant" ? "🤖" : "🧑"}</div>
-      <div class="bubble">${msg.content.replace(/\n/g,"<br>")}</div>
-    `;
+    div.innerHTML = `<div class="bubble">${formatMessage(msg.content)}</div>`;
 
-    chatDiv.appendChild(wrapper);
+    chat.appendChild(div);
   });
 
-  chatDiv.scrollTop = 999999;
+  chat.scrollTop = chat.scrollHeight;
 }
 
-/* =========================
-   🚀 SEND
-========================= */
+/* ================================
+   FORMATOWANIE KODU
+================================ */
+
+function formatMessage(text) {
+
+  // kod ```
+  text = text.replace(/```([\s\S]*?)```/g, function(match, code) {
+    return `
+      <div class="code-block">
+        <button onclick="copyCode(this)">📋</button>
+        <pre>${escapeHTML(code)}</pre>
+      </div>
+    `;
+  });
+
+  return escapeHTML(text).replace(/\n/g, "<br>");
+}
+
+function copyCode(btn) {
+  const code = btn.nextElementSibling.innerText;
+  navigator.clipboard.writeText(code);
+  btn.innerText = "✔";
+  setTimeout(() => btn.innerText = "📋", 1000);
+}
+
+/* ================================
+   PLUGINS
+================================ */
+
+function runPlugin(text) {
+
+  // kalkulator
+  if (/^[0-9+\-*/ ().]+$/.test(text)) {
+    try {
+      return "Wynik: " + eval(text);
+    } catch {
+      return null;
+    }
+  }
+
+  // data
+  if (text.toLowerCase().includes("data")) {
+    return "Dzisiejsza data: " + new Date().toLocaleString();
+  }
+
+  return null;
+}
+
+/* ================================
+   SEND
+================================ */
+
+let sending = false;
 
 async function send() {
+
+  if (sending) return;
+
   const input = document.getElementById("input");
   const text = input.value.trim();
   if (!text) return;
 
-  chats[currentChatId].messages.push({ role: "user", content: text });
+  sending = true;
   input.value = "";
-  saveAll();
+
+  const chat = data.chats[data.currentChat];
+
+  chat.messages.push({ role: "user", content: text });
   renderMessages();
+  save();
 
-  const emotion = await detectEmotion(text);
-  const memoryContext = getMemoryContext();
-
-  let wikiData = null;
-
-  if (shouldUseWiki(text)) {
-    wikiData = await searchWikipedia(text.replace(/co to|kim jest|kto to/gi,""));
+  // plugin?
+  const pluginResult = runPlugin(text);
+  if (pluginResult) {
+    chat.messages.push({ role: "assistant", content: pluginResult });
+    renderMessages();
+    save();
+    sending = false;
+    return;
   }
 
-  const systemPrompt = `
-Jesteś Mope.
-Twój aktualny nastrój: ${aiMood}.
-Emocja użytkownika: ${emotion}.
-${memoryContext}
-${wikiData ? "Dane z Wikipedii: " + wikiData : ""}
-Odpowiadaj inteligentnie i naturalnie.
-`;
+  chat.messages.push({ role: "assistant", content: "" });
+  renderMessages();
 
   try {
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": "Bearer " + API_KEY,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...chats[currentChatId].messages.slice(-10)
-        ],
-        temperature: 0.7,
-        max_tokens: 700
-      })
-    });
 
-    const data = await response.json();
-    const reply = data.choices[0].message.content;
+    const lastMessages = chat.messages.slice(-20);
 
-    chats[currentChatId].messages.push({
-      role: "assistant",
-      content: reply
-    });
+    const response = await fetch(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + API_KEY,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [
+            { role: "system", content: "Jesteś inteligentnym, naturalnym asystentem." },
+            ...lastMessages
+          ],
+          temperature: 0.7
+        })
+      }
+    );
 
-    updateMemory(text);
-    saveAll();
+    const result = await response.json();
+
+    let reply = result?.choices?.[0]?.message?.content || "Błąd odpowiedzi.";
+
+    await typeEffect(chat, reply);
+
+    // auto nazwa czatu po pierwszej wiadomości
+    if (chat.messages.length === 2) {
+      chat.name = text.substring(0, 25);
+      renderChatList();
+    }
+
+  } catch (err) {
+
+    chat.messages[chat.messages.length - 1].content = "Błąd połączenia.";
+  }
+
+  renderMessages();
+  save();
+  sending = false;
+}
+
+/* ================================
+   TYPING EFFECT
+================================ */
+
+async function typeEffect(chat, text) {
+
+  let message = chat.messages[chat.messages.length - 1];
+
+  for (let i = 0; i < text.length; i++) {
+    message.content += text[i];
     renderMessages();
-
-  } catch {
-    alert("Błąd API");
+    await new Promise(r => setTimeout(r, 10));
   }
 }
 
-/* ========================= */
+/* ================================
+   EKSPORT
+================================ */
+
+function exportChat() {
+  const chat = data.chats[data.currentChat];
+  let content = chat.messages.map(m => `${m.role}: ${m.content}`).join("\n\n");
+
+  const blob = new Blob([content], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = chat.name + ".txt";
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+/* ================================
+   SECURITY
+================================ */
+
+function escapeHTML(str) {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/* ================================
+   INIT
+================================ */
 
 document.addEventListener("keydown", e => {
   if (e.key === "Enter") send();
 });
 
+if (!data.currentChat) createChat();
+
 renderChatList();
 renderMessages();
-
