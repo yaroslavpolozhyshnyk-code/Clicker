@@ -1,25 +1,40 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-    <meta charset="UTF-8">
-    <title>Mope AI</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <title>Mope AI v7</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-<div class="sidebar">
-    <div class="logo">🤖 Mope</div>
-    <button class="new-chat" onclick="createNewChat()">+ Nowy czat</button>
-    <div id="chatList" class="chat-list"></div>
-</div>
+<div class="app">
 
-<div class="main">
+  <aside class="sidebar">
+    <div class="logo">MOPE AI</div>
+
+    <button class="new-chat" onclick="createChat()">+ Nowy czat</button>
+
+    <div id="chatList" class="chat-list"></div>
+
+    <div class="modes">
+      <div>TRYB:</div>
+      <button onclick="setMode('auto')">AUTO</button>
+      <button onclick="setMode('friendly')">🤝</button>
+      <button onclick="setMode('technical')">💻</button>
+      <button onclick="setMode('analysis')">🧠</button>
+      <button onclick="setMode('creative')">🎨</button>
+    </div>
+  </aside>
+
+  <main class="chat-container">
     <div id="chat" class="chat"></div>
 
     <div class="input-area">
-        <input type="text" id="input" placeholder="Napisz wiadomość..." autocomplete="off">
-        <button onclick="send()">Wyślij</button>
+      <input id="input" placeholder="Napisz wiadomość..." />
+      <button onclick="send()">Wyślij</button>
     </div>
+  </main>
+
 </div>
 
 <script src="script.js"></script>
