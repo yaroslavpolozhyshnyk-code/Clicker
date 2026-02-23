@@ -2,7 +2,7 @@
    MOPE ULTRA
 ================================ */
 
-const API_KEY = "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";
+const API_KEY = "";
 const MODEL = "llama-3.1-8b-instant";
 const STORAGE_KEY = "MOPE";
 
@@ -288,3 +288,4 @@ if (!data.currentChat) createChat();
 
 renderChatList();
 renderMessages();
+
